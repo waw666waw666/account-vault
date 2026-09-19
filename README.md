@@ -1,4 +1,4 @@
-# Account Vault · 账号库
+# Avatar Vault · 头像库
 
 > **我攒了一堆谷歌号。邮箱我记不住，但头像我记得住。**
 
@@ -148,8 +148,8 @@
 需要 **Node.js 18+**。
 
 ```bash
-git clone https://github.com/waw666waw666/account-vault.git
-cd account-vault
+git clone https://github.com/waw666waw666/avatar-vault.git
+cd avatar-vault
 npm install
 
 # 准备 OCR 识别组件（截图导入功能需要，约 8.8MB，仅首次）
@@ -257,7 +257,7 @@ npm run setup:ocr
 ## 项目结构
 
 ```
-account-vault/
+avatar-vault/
 ├─ index.html                  HTML 入口
 ├─ vite.config.ts              Vite 配置（开发端口 5188）
 ├─ package.json

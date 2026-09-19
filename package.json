@@ -1,5 +1,5 @@
 {
-  "name": "account-vault",
+  "name": "avatar-vault",
   "version": "0.1.0",
   "private": true,
   "description": "靠头像认账号的本地账号管理器：粘贴截图自动抠出头像和邮箱，支持标签库、独立备注与快捷复制",
@@ -7,12 +7,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/waw666waw666/account-vault.git"
+    "url": "git+https://github.com/waw666waw666/avatar-vault.git"
   },
   "bugs": {
-    "url": "https://github.com/waw666waw666/account-vault/issues"
+    "url": "https://github.com/waw666waw666/avatar-vault/issues"
   },
-  "homepage": "https://github.com/waw666waw666/account-vault#readme",
+  "homepage": "https://github.com/waw666waw666/avatar-vault#readme",
   "keywords": [
     "password-manager",
     "account-manager",

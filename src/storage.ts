@@ -1,5 +1,6 @@
 import type { PersistedVault } from './types'
 
+// 库名沿用项目改名前的值，改动会导致已有用户读到空库
 const DATABASE_NAME = 'account-vault'
 const STORE_NAME = 'state'
 const VAULT_KEY = 'vault'

@@ -52,7 +52,7 @@ function download(url, dest, redirects = 0) {
     if (redirects > 5) return reject(new Error('重定向次数过多'))
 
     https
-      .get(url, { headers: { 'User-Agent': 'account-vault-setup' } }, (res) => {
+      .get(url, { headers: { 'User-Agent': 'avatar-vault-setup' } }, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           res.resume()
           return resolve(download(res.headers.location, dest, redirects + 1))
