@@ -2,7 +2,7 @@
   "name": "account-vault",
   "version": "0.1.0",
   "private": true,
-  "description": "本地优先的账号管理工具，支持截图 OCR 批量导入、标签分组与 AES-256 加密",
+  "description": "靠头像认账号的本地账号管理器：粘贴截图自动抠出头像和邮箱，支持标签库、独立备注与快捷复制",
   "type": "module",
   "license": "MIT",
   "repository": {
