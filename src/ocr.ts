@@ -136,6 +136,123 @@ function rgbToHex(red: number, green: number, blue: number): string {
   return `#${[red, green, blue].map((value) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, '0')).join('')}`.toUpperCase()
 }
 
+/**
+ * 扫描截图里的所有头像色块，按从上到下的顺序返回。
+ *
+ * 思路：头像是一块「颜色统一且明显不同于背景」的连续区域。
+ * 先把像素按颜色是否鲜艳（远离背景色）打成前景，再按行做连通段合并，
+ * 纵向重叠的段归为同一个头像。这样得到的数量和顺序只取决于图片本身，
+ * 不受 OCR 行分割质量影响——这正是多账号截图不再串色的关键。
+ */
+function scanAvatarBlocks(source: HTMLCanvasElement): Array<{ x: number; y: number; width: number; height: number; color: [number, number, number] }> {
+  const context = source.getContext('2d', { willReadFrequently: true })
+  if (!context) return []
+
+  const width = source.width
+  const height = source.height
+  if (width < 8 || height < 8) return []
+
+  const image = context.getImageData(0, 0, width, height)
+
+  // 背景色取四角的中位数，比只看单列稳，也不会被窗口边框带偏
+  const corners: Array<[number, number, number]> = []
+  for (const [cx, cy] of [[1, 1], [width - 2, 1], [1, height - 2], [width - 2, height - 2]] as const) {
+    const index = (cy * width + cx) * 4
+    corners.push([image.data[index], image.data[index + 1], image.data[index + 2]])
+  }
+  const background: [number, number, number] = [0, 1, 2].map((channel) => {
+    const values = corners.map((pixel) => pixel[channel]).sort((left, right) => left - right)
+    return values[Math.floor(values.length / 2)]
+  }) as [number, number, number]
+
+  const isForeground = (index: number): boolean => {
+    const red = image.data[index]
+    const green = image.data[index + 1]
+    const blue = image.data[index + 2]
+    const saturation = Math.max(red, green, blue) - Math.min(red, green, blue)
+    const distance = Math.hypot(red - background[0], green - background[1], blue - background[2])
+    // 只看饱和度会漏掉灰色头像（灰的饱和度是 0），所以要么够鲜艳，要么和背景色差得够远。
+    return saturation >= 40 || distance > 90
+  }
+
+  // 逐行取前景段
+  type Segment = { row: number; left: number; right: number }
+  const segments: Segment[] = []
+  for (let y = 0; y < height; y += 1) {
+    let start = -1
+    for (let x = 0; x <= width; x += 1) {
+      const active = x < width && isForeground((y * width + x) * 4)
+      if (active && start < 0) start = x
+      else if (!active && start >= 0) {
+        if (x - start >= 4) segments.push({ row: y, left: start, right: x - 1 })
+        start = -1
+      }
+    }
+  }
+  if (!segments.length) return []
+
+  // 纵向相邻且横向重叠的段属于同一个头像
+  type Block = { top: number; bottom: number; left: number; right: number }
+  const blocks: Block[] = []
+  for (const segment of segments) {
+    const hit = blocks.find((block) =>
+      segment.row - block.bottom <= 2 && segment.left <= block.right + 2 && segment.right >= block.left - 2,
+    )
+    if (hit) {
+      hit.bottom = segment.row
+      hit.left = Math.min(hit.left, segment.left)
+      hit.right = Math.max(hit.right, segment.right)
+    } else {
+      blocks.push({ top: segment.row, bottom: segment.row, left: segment.left, right: segment.right })
+    }
+  }
+
+  // 只保留接近方形、尺寸合理的块，滤掉细长的文字条和色带
+  return blocks
+    .map((block) => {
+      const blockWidth = block.right - block.left + 1
+      const blockHeight = block.bottom - block.top + 1
+      const aspect = blockHeight / blockWidth
+      if (blockHeight < 8 || blockWidth < 8) return null
+      if (aspect < 0.55 || aspect > 1.8) return null
+
+      // 取块内像素的中位数作为代表色。这里只排除白色字母和抗锯齿边缘，
+      // 不能再套 isForeground——那样会把灰头像的像素一起滤掉。
+      const reds: number[] = []
+      const greens: number[] = []
+      const blues: number[] = []
+      const inset = Math.max(1, Math.round(Math.min(blockWidth, blockHeight) * 0.18))
+      for (let y = block.top + inset; y <= block.bottom - inset; y += 1) {
+        for (let x = block.left + inset; x <= block.right - inset; x += 1) {
+          const index = (y * width + x) * 4
+          const red = image.data[index]
+          const green = image.data[index + 1]
+          const blue = image.data[index + 2]
+          // 头像里的白色字母是纯白，跳过它，剩余像素就是底色
+          if (red > 236 && green > 236 && blue > 236) continue
+          reds.push(red)
+          greens.push(green)
+          blues.push(blue)
+        }
+      }
+      if (reds.length < 12) return null
+      const median = (values: number[]) => {
+        const sorted = [...values].sort((left, right) => left - right)
+        return sorted[Math.floor(sorted.length / 2)]
+      }
+      return {
+        x: (block.left + block.right) / 2,
+        y: (block.top + block.bottom) / 2,
+        width: blockWidth,
+        height: blockHeight,
+        color: [median(reds), median(greens), median(blues)] as [number, number, number],
+        pixels: reds.length,
+      }
+    })
+    .filter((block): block is NonNullable<typeof block> => block !== null)
+    .sort((left, right) => left.y - right.y)
+}
+
 function cropAvatar(source: HTMLCanvasElement, centerX: number, centerY: number, radius: number): string {
   const size = 128
   const canvas = document.createElement('canvas')
@@ -151,6 +268,18 @@ function cropAvatar(source: HTMLCanvasElement, centerX: number, centerY: number,
 
 function analyzeAvatar(source: HTMLCanvasElement, line: OcrLine, name: string): Avatar {
   const context = source.getContext('2d', { willReadFrequently: true })!
+
+  // 整块头像扫描只在「整张图只有一个头像」时启用。
+  //
+  // 单账号截图时这一步最可靠：它直接读出头像色块的坐标，绕开 OCR 偶发的
+  // centerY 纵向偏移（偏移会让下面的采样窗口整段错过头像，最终退回名字哈希色）。
+  // 多账号截图不用它——一张图里多个色块要按顺序和文字行配对，而 OCR 的行分割
+  // 质量不稳定，配对可能串位；那种情况交给下面原有逻辑。
+  const blocks = scanAvatarBlocks(source)
+  if (blocks.length === 1) {
+    return { type: 'initial', letter: getInitial(name), color: rgbToHex(...blocks[0].color) }
+  }
+
   const searchRight = Math.max(8, Math.min(source.width, Math.floor(line.textX - 3)))
   const singleRow = source.height <= 260 && source.width / source.height >= 1.6
   const verticalRadius = singleRow
