@@ -4,6 +4,14 @@
 
 支持把账号截图 **粘贴即识别**（本地 OCR），自动整理成结构化账号列表。
 
+![主界面](docs/screenshots/main-view.png)
+
+<p align="center"><sub>主界面：板块分组、标签筛选与账号卡片</sub></p>
+
+![账号网格](docs/screenshots/account-grid.png)
+
+<p align="center"><sub>账号概览：邮箱脱敏显示，一键复制</sub></p>
+
 > **状态**：个人项目，持续迭代中。核心功能可用，欢迎提 Issue。
 
 ---
