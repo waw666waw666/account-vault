@@ -52,8 +52,6 @@
 
 **关键点：首字母头像的颜色是从截图里读出来的真实颜色**，不是随机生成的。
 
-这条听起来理所当然，但实现上有坑 —— 详见下面 [「一个踩过的坑」](#一个踩过的坑头像颜色为什么错)。
-
 识别出来的头像还能手动改：点一下就能换图，或者改字母和颜色。
 
 ### 截图 OCR 导入
@@ -65,48 +63,6 @@
 - 识别结果逐条可勾选、可修改，确认后再导入
 
 > 不想走截图？主界面右上角**「添加账号」**随时手动录入单个账号 —— 见下面的「其他功能 → 手动添加」。
-
----
-
-## 一个踩过的坑：头像颜色为什么错
-
-这个 bug 值得单独写一节，因为它很典型。
-
-**现象**：粘贴一张深色背景的谷歌账号截图，头像明明是**橙色**，导入后却变成**紫色** `#6D5BD0`。
-
-**排查过程**：
-
-1. 直接从原图取像素 → 头像真实颜色是 `rgb(243,78,26)`，**图上根本没有紫色**
-2. 那就说明紫色不是从图上读到的，而是**被生成的**
-3. 查代码发现一个静默兜底：
-
-```ts
-if (!range) return avatarForName(name)   // 采样失败 → 用名字哈希出颜色
-```
-
-而 `colorFromName()` 拿账号名做哈希，从 8 个预设色里挑一个。`"Battuka"` 哈希出来**正好是紫色**。
-
-4. 那为什么采样会失败？继续追：
-
-```
-图片高 173px，账号行实际在 y ≈ 60
-但 OCR 报告的文字行位置是 y = 120
-```
-
-OCR **报错了文字行的纵向位置**。采样窗口跟着错误坐标走（`y = 73~170`），**整段错过了头像**（`y = 38~82`）→ 采样失败 → 回退到哈希色。
-
-**根因**：`OCR 坐标偏移` 遇上 `静默兜底`。前者让人找不到原因，后者让错误伪装成"识别结果"。
-
-**修复**：不再依赖 OCR 给的纵向坐标，改为**直接扫描图里的彩色头像色块**，取块内像素的中位数作为头像色。
-
-```ts
-const blocks = scanAvatarBlocks(source)
-if (blocks.length === 1) {
-  return { type: 'initial', letter: getInitial(name), color: rgbToHex(...blocks[0].color) }
-}
-```
-
-实测：`#6D5BD0`（错）→ `#F4511E`（真实 `#F34E1A`，误差 1 个色阶）。
 
 ---
 
@@ -327,29 +283,61 @@ npm run setup:ocr
 ## 项目结构
 
 ```
-src/
-  App.tsx                     应用主组件与状态编排
-  main.tsx                    入口
-  types.ts                    数据模型定义
-  storage.ts                  IndexedDB 持久化
-  crypto.ts                   加密与解密
-  ocr.ts                      截图识别与图像预处理
-  bridge.ts                   批量导入指令处理
-  utils.ts                    通用工具
-  seed.ts                     初始数据
-  styles.css                  样式
-  components/
-    Views.tsx                 主视图（列表 / 板块 / 标签）
-    Dialogs.tsx               编辑对话框
-    ScreenshotImportDialog.tsx 截图导入
-    ConfirmModal.tsx          确认弹窗
-    Common.tsx                通用组件
-scripts/
-  setup-ocr.cjs               准备 OCR 组件
-  launcher.ps1                Windows 启动脚本
-public/
-  ocr/                        OCR 组件（需 setup:ocr 生成）
+account-vault/
+├─ index.html                  HTML 入口
+├─ vite.config.ts              Vite 配置（开发端口 5188）
+├─ package.json
+├─ tsconfig*.json              TS 配置（app / node 分离）
+├─ run.bat / stop.bat          Windows 一键启动 / 停止
+│
+├─ src/
+│  ├─ main.tsx                 React 挂载
+│  ├─ App.tsx                  应用主组件：状态编排、增删改查、视图切换
+│  ├─ types.ts                 数据模型（账号 / 板块 / 标签 / 头像 / 快捷复制项）
+│  ├─ storage.ts               IndexedDB 持久化
+│  ├─ crypto.ts                主密码加密（PBKDF2 + AES-GCM）
+│  ├─ seed.ts                  初始示例数据
+│  ├─ styles.css               全部样式
+│  │
+│  ├─ ocr.ts                   ★ 截图识别：图像预处理、tesseract 调用、
+│  │                             头像抠取与取色、邮箱提取、结果合并去重
+│  ├─ image.ts                 图片文件转头像（居中裁剪 + 缩放）
+│  ├─ copy-icons.ts            快捷复制项的图标识别与配色
+│  ├─ bridge.ts                外部指令导入（读取 JSON 指令并应用）
+│  ├─ utils.ts                 通用工具：名称清洗、首字母、名字哈希色、ID
+│  ├─ vite-env.d.ts            Vite 类型声明
+│  │
+│  └─ components/
+│     ├─ Views.tsx             主视图：账号网格 / 板块 / 标签，含拖拽排序
+│     ├─ Dialogs.tsx           编辑对话框：账号、快捷复制项、标签、设置备份
+│     ├─ ScreenshotImportDialog.tsx  截图导入确认流程
+│     ├─ ConfirmModal.tsx      确认弹窗
+│     └─ Common.tsx            通用小部件
+│
+├─ scripts/
+│  ├─ setup-ocr.cjs            准备 OCR 组件（复制 worker、下载语言包）
+│  └─ launcher.ps1             Windows 启动辅助脚本
+│
+├─ public/
+│  ├─ favicon.svg
+│  ├─ agent_bridge.json        外部指令文件（示例）
+│  └─ ocr/                     OCR 组件，由 setup:ocr 生成，不入库
+│     ├─ worker.min.js
+│     ├─ tesseract-core-simd-lstm.wasm.js
+│     └─ lang/eng.traineddata
+│
+├─ docs/screenshots/           README 用截图
+└─ src/*.test.ts               单元测试（vitest）
 ```
+
+**几个关键文件**：
+
+| 文件 | 作用 |
+|---|---|
+| `src/ocr.ts` | 整个项目的核心 —— 截图怎么变成头像和邮箱 |
+| `src/App.tsx` | 最大的文件，所有状态的编排都在这里 |
+| `src/storage.ts` | 数据落地，换存储方案只需改它 |
+| `src/crypto.ts` | 加密自成一体，不依赖其他模块 |
 
 ---
 
