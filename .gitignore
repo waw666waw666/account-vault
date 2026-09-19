@@ -7,6 +7,8 @@ dist/
 
 # local OCR assets (downloaded via `npm run setup:ocr`)
 public/ocr/
+eng.traineddata
+*.traineddata
 
 # local runtime state
 outputs/
