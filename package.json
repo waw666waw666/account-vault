@@ -1,0 +1,51 @@
+{
+  "name": "account-vault",
+  "version": "0.1.0",
+  "private": true,
+  "description": "本地优先的账号管理工具，支持截图 OCR 批量导入、标签分组与 AES-256 加密",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/waw666waw666/account-vault.git"
+  },
+  "bugs": {
+    "url": "https://github.com/waw666waw666/account-vault/issues"
+  },
+  "homepage": "https://github.com/waw666waw666/account-vault#readme",
+  "keywords": [
+    "password-manager",
+    "account-manager",
+    "local-first",
+    "ocr",
+    "indexeddb",
+    "react",
+    "vite",
+    "typescript"
+  ],
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5188",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "test": "vitest run src",
+    "test:watch": "vitest src",
+    "setup:ocr": "node scripts/setup-ocr.cjs"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "lucide-react": "1.44.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tesseract.js": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.0"
+  }
+}

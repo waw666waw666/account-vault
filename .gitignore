@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# local OCR assets (downloaded via `npm run setup:ocr`)
+public/ocr/
+
+# local runtime state
+outputs/
+*.log
+.vite/
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# secrets
+.env
+.env.*
+*.local

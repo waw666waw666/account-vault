@@ -1,0 +1,6 @@
+{
+  "id": "example-command-1",
+  "action": "append",
+  "toastMessage": "示例：外部指令已生效",
+  "accounts": []
+}
