@@ -26,6 +26,7 @@ export interface BridgeAccountInput {
   boardId?: string
   password?: string
   twoFactor?: string
+  backupCode?: string
   tags?: (string | number)[]
   notes?: string
   favorite?: boolean
@@ -184,6 +185,7 @@ export function applyBridgePayload(
         copyItems,
         password: acc.password || undefined,
         twoFactor: acc.twoFactor || undefined,
+        backupCode: acc.backupCode || undefined,
         notes: acc.notes || '',
         favorite: Boolean(acc.favorite),
         registeredAt: acc.registeredAt || undefined,
@@ -257,6 +259,7 @@ export function applyBridgePayload(
       copyItems,
       password: acc.password || undefined,
       twoFactor: acc.twoFactor || undefined,
+      backupCode: acc.backupCode || undefined,
       notes: acc.notes || '',
       favorite: Boolean(acc.favorite),
       registeredAt: acc.registeredAt || undefined,

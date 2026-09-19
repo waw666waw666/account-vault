@@ -30,6 +30,7 @@ import {
   Eye,
   EyeOff,
   FileUp,
+  FolderPlus,
   GripVertical,
   Inbox,
   KeyRound,
@@ -39,14 +40,17 @@ import {
   Plus,
   RefreshCw,
   Shield,
+  ShieldAlert,
   ShieldCheck,
+  ShieldOff,
   Sparkles,
   Star,
+  Tags,
   Trash2,
   X,
 } from 'lucide-react'
 import type { Account, Board, CopyItem, Tag, VaultData } from '../types'
-import { formatAccountAge, formatUpdatedAt, sameTagName, TAG_COLORS, colorFromName, generateTOTP, isGeminiProTag, makeId, maskIdentifier } from '../utils'
+import { formatAccountAge, formatUpdatedAt, sameTagName, TAG_COLORS, colorFromName, generateTOTP, analyzeTwoFactor, isGeminiProTag, makeId, maskIdentifier } from '../utils'
 import { autoDetectCopyIcon, getCopyIconComponent } from '../copy-icons'
 import { Avatar, EmptyState, IconButton, Modal, TagChip } from './Common'
 
@@ -291,11 +295,14 @@ export function AccountInspector({
   const [localNotes, setLocalNotes] = useState('')
   const [revealPassword, setRevealPassword] = useState(false)
   const [reveal2FA, setReveal2FA] = useState(false)
+  const [revealBackupCode, setRevealBackupCode] = useState(false)
   const [passwordCopied, setPasswordCopied] = useState(false)
   const [twoFactorCopied, setTwoFactorCopied] = useState(false)
   const [totpCodeCopied, setTotpCodeCopied] = useState(false)
-  const [editingField, setEditingField] = useState<'password' | 'twoFactor' | null>(null)
+  const [backupCodeCopied, setBackupCodeCopied] = useState(false)
+  const [editingField, setEditingField] = useState<'password' | 'twoFactor' | 'backupCode' | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [showEditPassword, setShowEditPassword] = useState(false)
   const [totpData, setTotpData] = useState<{ code: string; remainingSeconds: number } | null>(null)
   const tagPopoverRef = useRef<HTMLDivElement>(null)
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -335,11 +342,14 @@ export function AccountInspector({
     setInlineAddOpen(false)
     setRevealPassword(false)
     setReveal2FA(false)
+    setRevealBackupCode(false)
     setPasswordCopied(false)
     setTwoFactorCopied(false)
     setTotpCodeCopied(false)
+    setBackupCodeCopied(false)
     setEditingField(null)
     setEditValue('')
+    setShowEditPassword(false)
     setLocalNotes(account?.notes ?? '')
   }, [account?.id])
 
@@ -402,6 +412,9 @@ export function AccountInspector({
     }
     if (account.twoFactor) {
       lines.push(`【两步验证(2FA)】${account.twoFactor}`)
+    }
+    if (account.backupCode) {
+      lines.push(`【应急备用码】${account.backupCode}`)
     }
     if (account.copyItems && account.copyItems.length > 0) {
       lines.push(`--- 快捷复制 ---`)
@@ -635,18 +648,37 @@ export function AccountInspector({
                     e.preventDefault()
                     onUpdate({ password: editValue.trim() || undefined })
                     setEditingField(null)
+                    setShowEditPassword(false)
                   }}
                 >
                   <input
                     autoFocus
-                    type="text"
+                    type={showEditPassword ? 'text' : 'password'}
                     className="cred-strip-input"
                     value={editValue}
                     placeholder="输入登录密码..."
                     onChange={(e) => setEditValue(e.target.value)}
                   />
+                  <button
+                    type="button"
+                    className="cred-strip-eye-btn"
+                    onClick={() => setShowEditPassword((p) => !p)}
+                    title={showEditPassword ? '隐藏明文' : '查看明文'}
+                    aria-label={showEditPassword ? '隐藏明文' : '查看明文'}
+                  >
+                    {showEditPassword ? <EyeOff size={11} /> : <Eye size={11} />}
+                  </button>
                   <button type="submit" className="cred-strip-save-btn">保存</button>
-                  <button type="button" className="cred-strip-cancel-btn" onClick={() => setEditingField(null)}>取消</button>
+                  <button
+                    type="button"
+                    className="cred-strip-cancel-btn"
+                    onClick={() => {
+                      setEditingField(null)
+                      setShowEditPassword(false)
+                    }}
+                  >
+                    取消
+                  </button>
                 </form>
               ) : account.password ? (
                 <span
@@ -751,7 +783,7 @@ export function AccountInspector({
                     type="text"
                     className="cred-strip-input"
                     value={editValue}
-                    placeholder="输入 TOTP 密钥或备用码..."
+                    placeholder="输入 2FA / TOTP 密钥..."
                     onChange={(e) => setEditValue(e.target.value)}
                   />
                   <button type="submit" className="cred-strip-save-btn">保存</button>
@@ -764,34 +796,19 @@ export function AccountInspector({
                       className="cred-strip-value is-revealed"
                       title="点击复制 2FA 密钥"
                       onClick={() => {
-                        onCopy(account.twoFactor!, '2FA 凭据')
+                        onCopy(account.twoFactor!, '2FA 密钥')
                         setTwoFactorCopied(true)
                         window.setTimeout(() => setTwoFactorCopied(false), 1500)
                       }}
                     >
                       {account.twoFactor}
                     </span>
-                  ) : totpData ? (
-                    <button
-                      type="button"
-                      className={`cred-strip-totp-badge ${totpCodeCopied ? 'is-copied' : ''}`}
-                      onClick={() => {
-                        onCopy(totpData.code, '2FA 动态码')
-                        setTotpCodeCopied(true)
-                        window.setTimeout(() => setTotpCodeCopied(false), 1500)
-                      }}
-                      title={`点击直接复制 6 位动态验证码（${totpData.remainingSeconds}秒后刷新）`}
-                    >
-                      {totpCodeCopied ? <Check size={11} strokeWidth={2.4} /> : <Sparkles size={11} />}
-                      <span className="totp-badge-digits">{totpData.code.slice(0, 3)} {totpData.code.slice(3)}</span>
-                      <span className="totp-badge-sec">{totpCodeCopied ? '已拷' : `${totpData.remainingSeconds}s`}</span>
-                    </button>
                   ) : (
                     <span
                       className="cred-strip-value is-masked"
-                      title="点击复制 2FA 凭据"
+                      title="点击复制 2FA 密钥"
                       onClick={() => {
-                        onCopy(account.twoFactor!, '2FA 凭据')
+                        onCopy(account.twoFactor!, '2FA 密钥')
                         setTwoFactorCopied(true)
                         window.setTimeout(() => setTwoFactorCopied(false), 1500)
                       }}
@@ -809,7 +826,7 @@ export function AccountInspector({
                     setEditValue('')
                   }}
                 >
-                  + 配置 2FA / 备用码
+                  + 配置 2FA 密钥
                 </button>
               )}
             </div>
@@ -831,14 +848,14 @@ export function AccountInspector({
                       type="button"
                       className={`cred-mini-btn ${twoFactorCopied ? 'is-copied' : ''}`}
                       onClick={() => {
-                        onCopy(account.twoFactor!, '2FA 凭据')
+                        onCopy(account.twoFactor!, '2FA 密钥')
                         setTwoFactorCopied(true)
                         window.setTimeout(() => setTwoFactorCopied(false), 1500)
                       }}
-                      title="复制原始 2FA 密钥或备用码"
+                      title="复制 2FA 密钥"
+                      aria-label="复制 2FA 密钥"
                     >
                       {twoFactorCopied ? <Check size={12} strokeWidth={2.4} /> : <Copy size={12} />}
-                      <span>{twoFactorCopied ? '已拷' : '密钥'}</span>
                     </button>
                     <button
                       type="button"
@@ -848,6 +865,7 @@ export function AccountInspector({
                         setEditValue(account.twoFactor || '')
                       }}
                       title="修改 2FA"
+                      aria-label="修改 2FA"
                     >
                       <Pencil size={11} />
                     </button>
@@ -861,6 +879,208 @@ export function AccountInspector({
                       setEditValue('')
                     }}
                     title="配置 2FA"
+                  >
+                    <Plus size={11} />
+                    <span>设置</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 动态码行 (若 2FA 配置了有效动态密钥并生成了验证码，直接展示在 2FA 正下方) */}
+          {editingField !== 'twoFactor' && totpData && (
+            <>
+              <div className="cred-strip-divider" />
+              <div
+                className={`cred-strip-row cred-totp-row ${totpData.remainingSeconds <= 5 ? 'is-expiring' : ''} ${totpCodeCopied ? 'is-copied' : ''}`}
+                onClick={() => {
+                  onCopy(totpData.code, '2FA 动态码')
+                  setTotpCodeCopied(true)
+                  window.setTimeout(() => setTotpCodeCopied(false), 1500)
+                }}
+                title="点击直接复制 6 位动态验证码"
+              >
+                <div className="cred-strip-left">
+                  <Sparkles size={13} className="cred-strip-icon totp" />
+                  <span className="cred-strip-label">动态码</span>
+                  <div className="cred-strip-val-wrap">
+                    <span className="cred-totp-digits">
+                      {`${totpData.code.slice(0, 3)} ${totpData.code.slice(3)}`}
+                    </span>
+                    {totpCodeCopied && (
+                      <span className="cred-totp-tag is-copied">已复制</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="cred-strip-actions" onClick={(e) => e.stopPropagation()}>
+                  <span className="cred-totp-sec">{totpData.remainingSeconds}s</span>
+                  <div
+                    className="totp-pie"
+                    style={{
+                      '--pie-deg': `${(totpData.remainingSeconds / 30) * 360}deg`,
+                      '--pie-color': totpData.remainingSeconds <= 5 ? '#e11d48' : '#2563eb',
+                    } as React.CSSProperties}
+                    title={`剩余 ${totpData.remainingSeconds} 秒后刷新`}
+                  />
+                  <button
+                    type="button"
+                    className={`cred-mini-btn ${totpCodeCopied ? 'is-copied' : ''}`}
+                    onClick={() => {
+                      onCopy(totpData.code, '2FA 动态码')
+                      setTotpCodeCopied(true)
+                      window.setTimeout(() => setTotpCodeCopied(false), 1500)
+                    }}
+                    title="复制 6 位动态验证码"
+                    aria-label="复制动态码"
+                  >
+                    {totpCodeCopied ? <Check size={12} strokeWidth={2.4} /> : <Copy size={12} />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="cred-strip-divider" />
+
+          {/* 应急备用码 (Backup Code) 独立板块：位于 2FA / 动态码下方 */}
+          <div className={`cred-strip-row ${account.backupCode ? 'has-val' : 'is-empty'}`}>
+            <div className="cred-strip-left">
+              <ShieldAlert size={13} className="cred-strip-icon backup" />
+              <span className="cred-strip-label">备用码</span>
+              {editingField === 'backupCode' ? (
+                <form
+                  className="cred-strip-edit-form"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    onUpdate({ backupCode: editValue.trim() || undefined })
+                    setEditingField(null)
+                    setShowEditPassword(false)
+                  }}
+                >
+                  <input
+                    autoFocus
+                    type={showEditPassword ? 'text' : 'password'}
+                    className="cred-strip-input"
+                    value={editValue}
+                    placeholder="输入应急备用码..."
+                    onChange={(e) => setEditValue(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="cred-strip-eye-btn"
+                    onClick={() => setShowEditPassword((p) => !p)}
+                    title={showEditPassword ? '隐藏明文' : '查看明文'}
+                    aria-label={showEditPassword ? '隐藏明文' : '查看明文'}
+                  >
+                    {showEditPassword ? <EyeOff size={11} /> : <Eye size={11} />}
+                  </button>
+                  <button type="submit" className="cred-strip-save-btn">保存</button>
+                  <button
+                    type="button"
+                    className="cred-strip-cancel-btn"
+                    onClick={() => {
+                      setEditingField(null)
+                      setShowEditPassword(false)
+                    }}
+                  >
+                    取消
+                  </button>
+                </form>
+              ) : account.backupCode ? (
+                <div className="cred-strip-val-wrap">
+                  {revealBackupCode ? (
+                    <span
+                      className="cred-strip-value is-revealed"
+                      title="点击复制备用码"
+                      onClick={() => {
+                        onCopy(account.backupCode!, '应急备用码')
+                        setBackupCodeCopied(true)
+                        window.setTimeout(() => setBackupCodeCopied(false), 1500)
+                      }}
+                    >
+                      {account.backupCode}
+                    </span>
+                  ) : (
+                    <span
+                      className="cred-strip-value is-masked"
+                      title="点击复制备用码"
+                      onClick={() => {
+                        onCopy(account.backupCode!, '应急备用码')
+                        setBackupCodeCopied(true)
+                        window.setTimeout(() => setBackupCodeCopied(false), 1500)
+                      }}
+                    >
+                      ••••••••••••
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="cred-strip-add-text"
+                  onClick={() => {
+                    setEditingField('backupCode')
+                    setEditValue('')
+                    setShowEditPassword(true)
+                  }}
+                >
+                  + 配置应急备用码
+                </button>
+              )}
+            </div>
+
+            {editingField !== 'backupCode' && (
+              <div className="cred-strip-actions">
+                {account.backupCode ? (
+                  <>
+                    <button
+                      type="button"
+                      className="cred-mini-btn"
+                      onClick={() => setRevealBackupCode((p) => !p)}
+                      title={revealBackupCode ? '隐藏明文' : '查看备用码'}
+                      aria-label={revealBackupCode ? '隐藏明文' : '查看备用码'}
+                    >
+                      {revealBackupCode ? <EyeOff size={12} /> : <Eye size={12} />}
+                    </button>
+                    <button
+                      type="button"
+                      className={`cred-mini-btn ${backupCodeCopied ? 'is-copied' : ''}`}
+                      onClick={() => {
+                        onCopy(account.backupCode!, '应急备用码')
+                        setBackupCodeCopied(true)
+                        window.setTimeout(() => setBackupCodeCopied(false), 1500)
+                      }}
+                      title="复制备用码"
+                      aria-label="复制备用码"
+                    >
+                      {backupCodeCopied ? <Check size={12} strokeWidth={2.4} /> : <Copy size={12} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="cred-mini-btn"
+                      onClick={() => {
+                        setEditingField('backupCode')
+                        setEditValue(account.backupCode || '')
+                        setShowEditPassword(true)
+                      }}
+                      title="修改备用码"
+                      aria-label="修改备用码"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="cred-mini-btn cred-mini-add"
+                    onClick={() => {
+                      setEditingField('backupCode')
+                      setEditValue('')
+                      setShowEditPassword(true)
+                    }}
+                    title="配置应急备用码"
                   >
                     <Plus size={11} />
                     <span>设置</span>
@@ -1373,54 +1593,194 @@ export function SettingsView({
   encrypted,
   saveStatus,
   onSetPassword,
+  onDisablePassword,
   onLock,
   onExport,
   onImport,
   onClear,
   onResetSeed,
+  onRestoreAuthentic,
+  onMigrateFrom5173,
 }: {
   data: VaultData
   encrypted: boolean
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
   onSetPassword: (password: string) => Promise<void>
+  onDisablePassword?: () => void
   onLock: () => void
   onExport: () => void
   onImport: (file: File) => void
   onClear: () => void
   onResetSeed?: () => void
+  onRestoreAuthentic?: () => void
+  onMigrateFrom5173?: () => void
 }) {
   const [passwordOpen, setPasswordOpen] = useState(false)
 
   return (
     <section className="settings-view">
-      <header className="view-title"><div><span className="eyebrow">本机数据</span><h1>设置</h1></div></header>
+      <header className="view-title">
+        <div>
+          <span className="eyebrow">本机数据</span>
+          <h1>设置与数据管理</h1>
+        </div>
+      </header>
 
-      <div className="settings-section">
-        <div className="settings-copy"><ShieldCheck size={21} /><div><h2>本机锁</h2><p>{encrypted ? '账号资料已加密保存' : '当前数据未设置主密码'}</p></div></div>
-        <div className="settings-actions">
-          {encrypted && <button className="button secondary" type="button" onClick={onLock}><LockKeyhole size={16} />立即锁定</button>}
-          <button className="button secondary" type="button" onClick={() => setPasswordOpen(true)}><KeyRound size={16} />{encrypted ? '更改主密码' : '开启本机锁'}</button>
+      {/* 1. 顶部数据概览卡片 (Vault Overview Stats) */}
+      <div className="vault-stats-grid">
+        <div className="vault-stat-card">
+          <div className="stat-icon-wrap is-account">
+            <Inbox size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-number">{data.accounts.length}</span>
+            <span className="stat-label">已存账号</span>
+          </div>
+        </div>
+        <div className="vault-stat-card">
+          <div className="stat-icon-wrap is-board">
+            <FolderPlus size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-number">{data.boards.length}</span>
+            <span className="stat-label">分类板块</span>
+          </div>
+        </div>
+        <div className="vault-stat-card">
+          <div className="stat-icon-wrap is-tag">
+            <Tags size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-number">{data.tags.length}</span>
+            <span className="stat-label">管理标签</span>
+          </div>
         </div>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-copy"><Database size={21} /><div><h2>备份与恢复</h2><p>{saveStatus === 'error' ? '本地保存失败，当前输入仍保留在页面' : saveStatus === 'saving' ? '正在写入本机数据库' : `数据已保存在此浏览器；导出文件${encrypted ? '会加密' : '不会加密'}`}</p></div></div>
-        <div className="settings-actions">
-          <button className="button secondary" type="button" onClick={onExport}><Download size={16} />导出备份</button>
-          <label className="button secondary upload-button"><FileUp size={16} />导入备份<input type="file" accept="application/json,.json" onChange={(event) => event.target.files?.[0] && onImport(event.target.files[0])} /></label>
-          {onResetSeed && <button className="button secondary" type="button" onClick={onResetSeed}><Sparkles size={16} />载入精选演示账号</button>}
+      {/* 2. 本机密码锁 (Security Card) */}
+      <div className="settings-card">
+        <div className="settings-card-header">
+          <div className="settings-copy">
+            <div className={`card-icon-pill ${encrypted ? 'is-encrypted' : ''}`}>
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <div className="card-title-row">
+                <h2>本机密码锁</h2>
+                <span className={`security-badge ${encrypted ? 'is-active' : 'is-disabled'}`}>
+                  {encrypted ? '已开启保护' : '未加密'}
+                </span>
+              </div>
+              <p>{encrypted ? '主密码已启用，账号数据在浏览器内以 AES-GCM 强加密存储' : '当前数据直接存放在浏览器本地，设置主密码后只有输入密码才可解锁'}</p>
+            </div>
+          </div>
+          <div className="settings-actions">
+            {encrypted && (
+              <>
+                <button className="button secondary" type="button" onClick={onLock}>
+                  <LockKeyhole size={15} />立即锁定
+                </button>
+                {onDisablePassword && (
+                  <button className="button danger" type="button" onClick={onDisablePassword}>
+                    <ShieldOff size={15} />关闭密码锁
+                  </button>
+                )}
+              </>
+            )}
+            <button className="button secondary" type="button" onClick={() => setPasswordOpen(true)}>
+              <KeyRound size={15} />{encrypted ? '更改主密码' : '开启本机锁'}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="vault-stats">
-        <div><strong>{data.accounts.length}</strong><span>账号</span></div>
-        <div><strong>{data.boards.length}</strong><span>板块</span></div>
-        <div><strong>{data.tags.length}</strong><span>标签</span></div>
+      {/* 3. 备份与数据管理 (Backup & Transfer Card) */}
+      <div className="settings-card">
+        <div className="settings-card-header">
+          <div className="settings-copy">
+            <div className="card-icon-pill">
+              <Database size={20} />
+            </div>
+            <div>
+              <h2>备份与迁移</h2>
+              <p>
+                {saveStatus === 'error'
+                  ? '本地保存失败，当前输入仍保留在页面'
+                  : saveStatus === 'saving'
+                  ? '正在写入本机数据库...'
+                  : `所有数据保存在此浏览器（IndexedDB）；导出的备份文件${encrypted ? '包含加密密文' : '为明文 JSON'}`}
+              </p>
+            </div>
+          </div>
+          <div className="settings-actions">
+            <button className="button primary" type="button" onClick={onExport}>
+              <Download size={15} />导出备份 (JSON)
+            </button>
+            <label className="button secondary upload-button">
+              <FileUp size={15} />导入备份
+              <input type="file" accept="application/json,.json" onChange={(event) => event.target.files?.[0] && onImport(event.target.files[0])} />
+            </label>
+          </div>
+        </div>
+
+        {/* 辅助工具栏：数据恢复与迁移 */}
+        {(onRestoreAuthentic || onMigrateFrom5173 || onResetSeed) && (
+          <div className="settings-card-subtools">
+            <span className="subtools-label">快捷迁移与恢复：</span>
+            <div className="subtools-group">
+              {onRestoreAuthentic && (
+                <button
+                  type="button"
+                  className="subtool-btn"
+                  onClick={onRestoreAuthentic}
+                  title="恢复 21 个初始真实 Google 账号数据"
+                >
+                  <Check size={13} />恢复 21 个初始账号
+                </button>
+              )}
+              {onMigrateFrom5173 && (
+                <button
+                  type="button"
+                  className="subtool-btn"
+                  onClick={onMigrateFrom5173}
+                  title="自动从旧 5173 端口拉取 IndexedDB 账号"
+                >
+                  <RefreshCw size={13} />从 5173 迁移历史数据
+                </button>
+              )}
+              {onResetSeed && (
+                <button
+                  type="button"
+                  className="subtool-btn"
+                  onClick={onResetSeed}
+                  title="载入精选演示账号体验所有功能"
+                >
+                  <Sparkles size={13} />载入演示账号
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="danger-zone">
-        <div><h2>清空数据</h2><p>删除所有账号和标签，保留默认板块。</p></div>
-        <button className="button danger" type="button" onClick={onClear}><Trash2 size={16} />清空全部数据</button>
+      {/* 4. 危险区域 (Danger Zone) */}
+      <div className="settings-card is-danger">
+        <div className="settings-card-header">
+          <div className="settings-copy">
+            <div className="card-icon-pill is-danger">
+              <Trash2 size={20} />
+            </div>
+            <div>
+              <h2>清空全部数据</h2>
+              <p>删除本地所有账号和自定义标签，保留默认板块。操作不可逆，请先备份。</p>
+            </div>
+          </div>
+          <div className="settings-actions">
+            <button className="button danger" type="button" onClick={onClear}>
+              <Trash2 size={15} />清空全部数据
+            </button>
+          </div>
+        </div>
       </div>
 
       {passwordOpen && <PasswordDialog encrypted={encrypted} onClose={() => setPasswordOpen(false)} onSave={onSetPassword} />}

@@ -36,7 +36,7 @@ body,
 }
 
 body {
-  min-width: 1100px;
+  min-width: 320px;
   overflow: hidden;
 }
 
@@ -136,7 +136,7 @@ button:disabled {
   z-index: 20;
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: var(--sidebar-width, 224px) minmax(420px, 1fr) auto;
+  grid-template-columns: var(--sidebar-width, 224px) minmax(180px, 1fr) auto;
   align-items: center;
   min-height: 64px;
   background: rgba(255, 255, 255, 0.98);
@@ -1483,6 +1483,7 @@ kbd { flex: 0 0 auto; padding: 3px 6px; border: 1px solid var(--line); border-ra
   letter-spacing: -0.01em;
   user-select: none;
   text-transform: none;
+  box-sizing: border-box;
 }
 
 /* Chrome 官方个人资料头像比例：字母高度占圆盘直径约 54% ~ 56% */
@@ -1491,11 +1492,17 @@ kbd { flex: 0 0 auto; padding: 3px 6px; border: 1px solid var(--line); border-ra
   height: 36px;
   font-size: 20px;
 }
+.avatar-initial.avatar-small {
+  padding-bottom: 2px;
+}
 
 .avatar-medium {
   width: 46px;
   height: 46px;
   font-size: 25px;
+}
+.avatar-initial.avatar-medium {
+  padding-bottom: 2.5px;
 }
 
 .avatar-large {
@@ -1503,32 +1510,42 @@ kbd { flex: 0 0 auto; padding: 3px 6px; border: 1px solid var(--line); border-ra
   height: 58px;
   font-size: 32px;
 }
+.avatar-initial.avatar-large {
+  padding-bottom: 3px;
+}
 
 .avatar-xlarge {
   width: 72px;
   height: 72px;
   font-size: 40px;
 }
+.avatar-initial.avatar-xlarge {
+  padding-bottom: 4px;
+}
 
-/* 针对双字母（如 wa）等比缩减字号并收紧字距，完美居中防溢出 */
+/* 针对双字母（如 wa）等比缩减字号并收紧字距，微调垂直光学中心 */
 .avatar-initial.is-multi-char.avatar-small {
   font-size: 15px;
   letter-spacing: -0.03em;
+  padding-bottom: 3px;
 }
 
 .avatar-initial.is-multi-char.avatar-medium {
   font-size: 18px;
   letter-spacing: -0.03em;
+  padding-bottom: 4px;
 }
 
 .avatar-initial.is-multi-char.avatar-large {
   font-size: 23px;
   letter-spacing: -0.03em;
+  padding-bottom: 5px;
 }
 
 .avatar-initial.is-multi-char.avatar-xlarge {
   font-size: 29px;
   letter-spacing: -0.03em;
+  padding-bottom: 6px;
 }
 
 .tag-chip {
@@ -1751,11 +1768,13 @@ button.tag-chip:hover,
 }
 
 .inspector-scroll {
-  width: 360px;
-  min-width: 360px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   height: 100%;
   box-sizing: border-box;
   padding: 14px 16px 16px;
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
   display: flex;
@@ -1902,6 +1921,7 @@ button.tag-chip:hover,
 }
 
 .identity-tags-container {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1919,7 +1939,7 @@ button.tag-chip:hover,
 }
 
 .tag-popover-anchor {
-  position: relative;
+  position: static;
   display: inline-flex;
   width: auto;
 }
@@ -1992,10 +2012,13 @@ button.tag-chip:hover,
 
 .tag-popover {
   position: absolute;
-  z-index: 30;
-  top: 30px;
+  z-index: 60;
+  top: calc(100% + 6px);
   left: 0;
-  width: 260px;
+  right: 0;
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
   text-align: left;
   padding: 12px;
   background: white;
@@ -3420,10 +3443,11 @@ button.tag-chip:hover,
 .settings-section,
 .danger-zone {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 30px;
-  min-height: 92px;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-height: 80px;
   padding: 20px 0;
   border-bottom: 1px solid var(--line);
 }
@@ -3432,11 +3456,14 @@ button.tag-chip:hover,
   display: flex;
   align-items: flex-start;
   gap: 13px;
+  min-width: 220px;
+  flex: 1 1 240px;
 }
 
 .settings-copy > svg {
   margin-top: 2px;
   color: var(--blue);
+  flex-shrink: 0;
 }
 
 .settings-copy h2,
@@ -3450,48 +3477,190 @@ button.tag-chip:hover,
   margin: 0;
   font-size: 13px;
   color: var(--muted);
+  line-height: 1.5;
 }
 
 .settings-actions {
   display: flex;
-  flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 9px;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 auto;
 }
 
-.vault-stats {
+/* 顶部概览统计卡片网格 */
+.vault-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  margin: 24px 0;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.vault-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
   background: white;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-.vault-stats > div {
+.stat-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.stat-icon-wrap.is-account {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.stat-icon-wrap.is-board {
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.stat-icon-wrap.is-tag {
+  color: #059669;
+  background: #ecfdf5;
+}
+
+.stat-info {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 22px;
-  border-right: 1px solid var(--line);
 }
 
-.vault-stats > div:last-child {
-  border-right: 0;
+.stat-number {
+  font-size: 26px;
+  font-weight: 750;
+  color: var(--ink);
+  line-height: 1.1;
 }
 
-.vault-stats strong {
-  font-size: 24px;
-}
-
-.vault-stats span {
-  font-size: 12px;
+.stat-label {
+  margin-top: 4px;
+  font-size: 13px;
   color: var(--muted);
 }
 
-.danger-zone {
-  margin-top: 12px;
-  border-bottom: 0;
+/* 卡片式设置区域 */
+.settings-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.settings-card.is-danger {
+  border-color: #fecdd3;
+  background: #fffafa;
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 22px 24px;
+}
+
+.card-icon-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  color: #2563eb;
+  background: #eff6ff;
+  flex-shrink: 0;
+}
+
+.card-icon-pill.is-encrypted {
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.card-icon-pill.is-danger {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.security-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.security-badge.is-active {
+  color: #16a34a;
+  background: #dcfce7;
+}
+
+.security-badge.is-disabled {
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+.settings-card-subtools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+
+.subtools-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 550;
+}
+
+.subtools-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.subtool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #475569;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.subtool-btn:hover {
+  color: #1e293b;
+  background: #f1f5f9;
+  border-color: #94a3b8;
 }
 
 .screenshot-dropzone {
@@ -4148,8 +4317,68 @@ button.tag-chip:hover,
   .brand { padding: 0 14px; }
   .accounts-view { padding: 26px 24px; }
   .account-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-  .inspector-scroll { padding: 8px 12px 10px; width: 100%; }
-  .topbar-center { padding: 0 24px; }
+  .inspector-scroll { padding: 8px 12px 10px; width: 100%; min-width: 0; overflow-x: hidden; }
+  .topbar-center { padding: 0 20px; }
+}
+
+@media (max-width: 1180px) {
+  .topbar {
+    grid-template-columns: var(--sidebar-width, 216px) minmax(140px, 1fr) auto;
+  }
+  .topbar-center {
+    padding: 0 12px;
+  }
+  .topbar-actions {
+    gap: 6px;
+    padding: 0 14px 0 8px;
+  }
+  .scan-button span {
+    display: none;
+  }
+  .library-view,
+  .settings-view {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 24px 20px 60px;
+  }
+  .accounts-view {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    --sidebar-width: 64px;
+  }
+  .brand {
+    padding: 0;
+    justify-content: center;
+  }
+  .brand-name {
+    display: none;
+  }
+  .sidebar-toggle-btn {
+    display: none;
+  }
+  .mask-toggle-btn span,
+  .common-tools-btn span:not(.rotate-180) {
+    display: none;
+  }
+  .scan-button span {
+    display: none;
+  }
+  .nav-section-label {
+    display: none;
+  }
+  .nav-item span,
+  .nav-item b,
+  .board-more {
+    display: none;
+  }
+  .local-status div {
+    display: none;
+  }
 }
 
 @media (max-height: 640px) {
@@ -4408,53 +4637,185 @@ button.tag-chip:hover,
   color: #2563eb;
 }
 
-.cred-strip-totp-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.cred-strip-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.cred-strip-pill.is-totp {
+  color: #1d4ed8;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
-  border-radius: 5px;
-  padding: 2px 7px;
+}
+
+.cred-strip-pill.is-backup {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+/* 2FA 单行高密动态码行 (直接位于 2FA 正下方，时间盘位于右侧) */
+.cred-totp-row,
+.cred-backup-row {
   cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-  line-height: 1;
+}
+
+.cred-totp-row .cred-strip-val-wrap {
+  flex: 1;
+  justify-content: center;
+}
+
+.cred-totp-row:hover,
+.cred-backup-row:hover {
+  background: #ffffff;
+}
+
+.cred-totp-row.is-copied,
+.cred-backup-row.is-copied {
+  background: #f0fdf4 !important;
+}
+
+.cred-strip-icon.totp {
   color: #2563eb;
 }
 
-.cred-strip-totp-badge:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+.cred-strip-icon.backup {
+  color: #d97706;
 }
 
-.cred-strip-totp-badge.is-copied {
-  color: #059669;
-  background: rgba(16, 185, 129, 0.1);
-  border-color: #10b981;
+.cred-strip-icon.hint {
+  color: #94a3b8;
 }
 
-.totp-badge-digits {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
+.cred-totp-digits {
+  font-family: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+  font-size: 13.5px;
   font-weight: 700;
+  letter-spacing: 0.8px;
   color: #1d4ed8;
-  letter-spacing: 0.05em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.15s ease;
 }
 
-.cred-strip-totp-badge.is-copied .totp-badge-digits {
-  color: #059669;
+.cred-totp-row.is-expiring .cred-totp-digits {
+  color: #e11d48;
 }
 
-.totp-badge-sec {
+.cred-backup-digits {
+  font-family: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cred-totp-tag {
   font-size: 10px;
   font-weight: 600;
-  color: #3b82f6;
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.2;
+  flex-shrink: 0;
 }
 
-.cred-strip-totp-badge.is-copied .totp-badge-sec {
-  color: #059669;
+.cred-totp-tag.is-copied {
+  color: #16a34a;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+.cred-totp-sec {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  min-width: 18px;
+  text-align: right;
+  transition: color 0.15s ease;
+}
+
+.cred-totp-row.is-expiring .cred-totp-sec {
+  color: #e11d48;
+  font-weight: 700;
+}
+
+/* 倒计时扇形饼图圆盘 (时间盘放到一行的右侧) */
+.totp-pie {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: conic-gradient(var(--pie-color, #2563eb) var(--pie-deg, 360deg), #e2e8f0 0deg);
+  flex-shrink: 0;
+  transition: background 0.2s linear;
+}
+
+.cred-totp-row.is-expiring .totp-pie {
+  --pie-color: #e11d48;
+}
+
+.cred-edit-hint-row {
+  min-height: 28px;
+  background: #f8fafc;
+}
+
+.cred-edit-hint-text {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.cred-edit-hint-text.is-totp {
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.cred-edit-hint-text.is-backup {
+  color: #92400e;
+  font-weight: 500;
+}
+
+/* 对话框 2FA 识别条 */
+.dialog-2fa-detect {
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dialog-2fa-detect.is-totp {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+.dialog-2fa-detect.is-backup {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.dialog-2fa-badge {
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.dialog-2fa-text {
+  font-size: 11px;
+  opacity: 0.9;
 }
 
 .cred-strip-actions {
@@ -4467,13 +4828,15 @@ button.tag-chip:hover,
 .cred-mini-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 3px;
   font-size: 11px;
   color: #475569;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 2px 5px;
+  min-width: 22px;
   height: 22px;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -4508,10 +4871,12 @@ button.tag-chip:hover,
   align-items: center;
   gap: 4px;
   flex: 1;
+  min-width: 0;
 }
 
 .cred-strip-input {
   flex: 1;
+  min-width: 0;
   height: 22px;
   font-size: 11px;
   padding: 0 6px;
@@ -4525,11 +4890,19 @@ button.tag-chip:hover,
   height: 22px;
   padding: 0 8px;
   font-size: 11px;
+  font-weight: 500;
   background: #2563eb;
   color: #ffffff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 22px;
+}
+
+.cred-strip-save-btn:hover {
+  background: #1d4ed8;
 }
 
 .cred-strip-cancel-btn {
@@ -4541,6 +4914,51 @@ button.tag-chip:hover,
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 20px;
+}
+
+.cred-strip-cancel-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.cred-strip-eye-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.cred-strip-eye-btn:hover {
+  color: #1e293b;
+  background: #e2e8f0;
+}
+
+.account-dialog-form {
+  gap: 12px;
+}
+
+.account-dialog-form .field {
+  gap: 5px;
+}
+
+.account-dialog-form .field input {
+  height: 36px;
+}
+
+.account-dialog-form .avatar-editor {
+  padding: 10px 14px;
 }
 
 .dialog-password-row {

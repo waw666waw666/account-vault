@@ -147,5 +147,43 @@ describe('TOTP 与 2FA 工具方法', () => {
     expect(res!.remainingSeconds).toBeGreaterThanOrEqual(1)
     expect(res!.remainingSeconds).toBeLessThanOrEqual(30)
   })
+
+  it('正确识别 TOTP 动态密钥 vs 2FA 备用码', async () => {
+    const { analyzeTwoFactor } = await import('./utils')
+    // 空值
+    expect(analyzeTwoFactor('')).toBeNull()
+    expect(analyzeTwoFactor(null)).toBeNull()
+
+    // 标准 Base32 TOTP 密钥
+    const totpResult = analyzeTwoFactor('JBSWY3DPEHPK3PXP')
+    expect(totpResult).not.toBeNull()
+    expect(totpResult!.type).toBe('totp')
+    expect(totpResult!.isTotp).toBe(true)
+    expect(totpResult!.title).toContain('TOTP')
+
+    // 带空格与小写的 Base32 TOTP 密钥
+    const spacedTotp = analyzeTwoFactor('jbsw y3dp ehpk 3pxp')
+    expect(spacedTotp).not.toBeNull()
+    expect(spacedTotp!.type).toBe('totp')
+    expect(spacedTotp!.isTotp).toBe(true)
+
+    // 纯数字 8 位备用码
+    const numBackup = analyzeTwoFactor('84920193')
+    expect(numBackup).not.toBeNull()
+    expect(numBackup!.type).toBe('backup_code')
+    expect(numBackup!.isTotp).toBe(false)
+    expect(numBackup!.title).toContain('备用码')
+
+    // 带有非 Base32 字符的破折号备用码
+    const dashBackup = analyzeTwoFactor('8492-0193-4412')
+    expect(dashBackup).not.toBeNull()
+    expect(dashBackup!.type).toBe('backup_code')
+    expect(dashBackup!.isTotp).toBe(false)
+
+    // 混合字母备用码（含非 Base32 字母如 1, 8, 9, 0）
+    const hexBackup = analyzeTwoFactor('a1b2-c3d4-e5f6')
+    expect(hexBackup).not.toBeNull()
+    expect(hexBackup!.type).toBe('backup_code')
+  })
 })
 

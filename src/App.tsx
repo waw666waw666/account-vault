@@ -34,7 +34,7 @@ import type { Account, Board, CopyItem, EncryptionContext, EncryptedPayload, Per
 import { encryptVault, createEncryptionContext, unlockVault } from './crypto'
 import { createEmptyVault, createSeedVault, createDemoVault } from './seed'
 import { loadPersistedVault, savePersistedVault } from './storage'
-import { annotateRecognizedDuplicates, formatAccountAge, formatUpdatedAt, isPersistedVault, isVaultData, makeId, maskIdentifier, sameTagName } from './utils'
+import { annotateRecognizedDuplicates, formatAccountAge, formatUpdatedAt, isPersistedVault, isVaultData, makeId, maskIdentifier, modifierKeyName, sameTagName } from './utils'
 import { applyBridgePayload, type BridgePayload } from './bridge'
 import {
   DndContext,
@@ -1042,6 +1042,32 @@ export default function App() {
     showToast('本机锁已开启')
   }
 
+  const disableEncryption = () => {
+    setConfirmOptions({
+      title: '关闭本机密码锁',
+      message: '确定要关闭本机密码锁吗？关闭后，账号数据将以未加密明文形式保存在浏览器本地（IndexedDB），打开或刷新页面时无需再输入主密码。',
+      confirmText: '确认关闭密码锁',
+      cancelText: '取消',
+      danger: true,
+      icon: 'alert',
+      onConfirm: async () => {
+        try {
+          await flushSave()
+          const currentData = latestDataRef.current
+          if (!currentData) return
+          const record: PersistedVault = { mode: 'plain', data: currentData }
+          await savePersistedVault(record)
+          setEncryption(null)
+          latestEncryptionRef.current = null
+          setSaveStatus('saved')
+          showToast('本机密码锁已关闭，恢复为明文存储')
+        } catch {
+          showToast('关闭本机锁失败，请重试', 'error')
+        }
+      },
+    })
+  }
+
   const lockNow = async () => {
     try {
       await flushSave()
@@ -1235,7 +1261,7 @@ export default function App() {
                 <X size={15} />
               </button>
             ) : (
-              <kbd>Ctrl K</kbd>
+              <kbd>{modifierKeyName} K</kbd>
             )}
           </label>
         </div>
@@ -1455,6 +1481,7 @@ export default function App() {
             encrypted={Boolean(encryption)}
             saveStatus={saveStatus}
             onSetPassword={enableEncryption}
+            onDisablePassword={disableEncryption}
             onLock={() => void lockNow()}
             onExport={() => void exportBackup()}
             onImport={(file) => void importBackup(file)}
@@ -1586,7 +1613,7 @@ export default function App() {
                 )}
               </DndContext>
             )}
-            <button type="button" className="import-hint" onClick={() => setImportFile(null)}><ImagePlus size={18} /><span>账号太多？粘贴截图，批量整理。</span><kbd>Ctrl V</kbd></button>
+            <button type="button" className="import-hint" onClick={() => setImportFile(null)}><ImagePlus size={18} /><span>账号太多？粘贴截图，批量整理。</span><kbd>{modifierKeyName} V</kbd></button>
           </section>
         )}
       </main>

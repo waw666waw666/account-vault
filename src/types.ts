@@ -50,6 +50,7 @@ export type Account = {
   registeredAt?: string
   password?: string
   twoFactor?: string
+  backupCode?: string
   createdAt: number
   updatedAt: number
 }

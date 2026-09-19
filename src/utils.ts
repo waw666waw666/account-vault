@@ -271,3 +271,48 @@ export async function generateTOTP(secret: string): Promise<{ code: string; rema
     return null
   }
 }
+
+export type TwoFactorType = 'totp' | 'backup_code'
+
+export interface TwoFactorAnalysis {
+  type: TwoFactorType
+  isTotp: boolean
+  cleanValue: string
+  title: string
+  badgeText: string
+  hint: string
+}
+
+export function analyzeTwoFactor(raw?: string | null): TwoFactorAnalysis | null {
+  if (!raw || !raw.trim()) return null
+  const trimmed = raw.trim()
+  const clean = trimmed.replace(/[\s=-]/g, '').toUpperCase()
+  const isBase32 = /^[A-Z2-7]+$/.test(clean)
+  const bytes = base32ToBytes(clean)
+  const isPureDigits = /^\d+$/.test(trimmed.replace(/[\s-]/g, ''))
+  const isTotp = !isPureDigits && isBase32 && !!bytes && bytes.length >= 5 && clean.length >= 8
+
+  if (isTotp) {
+    return {
+      type: 'totp',
+      isTotp: true,
+      cleanValue: clean,
+      title: 'TOTP 动态密钥',
+      badgeText: 'TOTP 动态密钥',
+      hint: '基于 RFC 6238 标准算法自动计算，每 30 秒轮换更新',
+    }
+  }
+
+  return {
+    type: 'backup_code',
+    isTotp: false,
+    cleanValue: trimmed,
+    title: '2FA 备用码 / 救援码',
+    badgeText: '2FA 备用码',
+    hint: '静态应急恢复凭据（非 TOTP 动态密钥）。登录遇到二次验证时可直接填入',
+  }
+}
+
+export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent || '')
+export const modifierKeyName = isMac ? '⌘' : 'Ctrl'
+

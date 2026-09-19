@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Eye, EyeOff, ImagePlus, Star, Trash2 } from 'lucide-react'
 import type { Account, Avatar as AvatarValue, Board, CopyItem, Tag } from '../types'
 import { imageFileToAvatar } from '../image'
-import { avatarForName, AVATAR_COLORS, colorFromName, getInitial, makeId } from '../utils'
+import { avatarForName, AVATAR_COLORS, colorFromName, getInitial, makeId, analyzeTwoFactor } from '../utils'
 import {
   autoDetectCopyIcon,
   COPY_COLOR_OPTIONS,
@@ -96,7 +96,14 @@ export function AccountDialog({
           </label>
 
           <div className="field">
-            <span>所属板块 <b>*</b></span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>所属板块 <b>*</b></span>
+              <label className="compact-favorite-row" style={{ margin: 0, padding: 0, fontSize: '12px' }}>
+                <input type="checkbox" checked={favorite} onChange={(event) => setFavorite(event.target.checked)} />
+                <Star size={13} fill={favorite ? 'currentColor' : 'none'} />
+                设为常用
+              </label>
+            </div>
             <SelectMenu
               value={boardId}
               label="选择所属板块"
@@ -109,7 +116,7 @@ export function AccountDialog({
         <div className="form-grid-2col">
           <label className="field">
             <span>邮箱或账号</span>
-            <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="选填，如 user@example.com" />
+            <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="选填，如 user@gmail.com" />
           </label>
 
           <label className="field">
@@ -151,15 +158,18 @@ export function AccountDialog({
               onChange={(event) => setTwoFactor(event.target.value)}
               placeholder="选填，TOTP 密钥或救援码"
             />
-          </label>
-        </div>
-
-        <div className="field favorite-field-col">
-          <span>快捷设置</span>
-          <label className="compact-favorite-row">
-            <input type="checkbox" checked={favorite} onChange={(event) => setFavorite(event.target.checked)} />
-            <Star size={15} fill={favorite ? 'currentColor' : 'none'} />
-            放到常用账号前面
+            {twoFactor.trim() && (() => {
+              const analysis = analyzeTwoFactor(twoFactor)
+              if (!analysis) return null
+              return (
+                <div className={`dialog-2fa-detect ${analysis.isTotp ? 'is-totp' : 'is-backup'}`}>
+                  <span className="dialog-2fa-badge">
+                    {analysis.isTotp ? 'TOTP 动态密钥' : '2FA 备用码'}
+                  </span>
+                  <span className="dialog-2fa-text">{analysis.hint}</span>
+                </div>
+              )
+            })()}
           </label>
         </div>
 
